@@ -29,19 +29,19 @@ if __name__ == "__main__":
         for instance in entry['instances']:
             split = instance['split']
             video_name = "{}.mp4".format(instance['video_id'])
-            print(video_name)
-            match split:
-                case 'train':
-                    train_lab.write('{},{}\n'.format(video_name, label))
-                case 'val':
-                    val_lab.write('{},{}\n'.format(video_name, label))
-                case 'test':
-                    test_lab.write('{},{}\n'.format(video_name, label))
-                case _:
-                    print("fuck")
-            
-            if os.path.exists(video_name):
-                os.rename(video_name, './{}/{}'.format(split, video_name))
+
+            if os.path.exists('./videos/' + video_name):
+                os.rename('./videos/' + video_name, './{}/{}'.format(split, video_name))
+                match split:
+                    case 'train':
+                        train_lab.write('{},{}\n'.format(video_name, label))
+                    case 'val':
+                        val_lab.write('{},{}\n'.format(video_name, label))
+                    case 'test':
+                        test_lab.write('{},{}\n'.format(video_name, label))
+                    case _:
+                        print("fuck")
+                
     
     train_lab.close()
     val_lab.close()
