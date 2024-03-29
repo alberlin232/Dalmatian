@@ -1,0 +1,5 @@
+**/.DS_Store
+data/train
+data/val
+data/test
+data/labels
