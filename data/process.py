@@ -32,15 +32,14 @@ if __name__ == "__main__":
 
             if os.path.exists('./videos/' + video_name):
                 os.rename('./videos/' + video_name, './{}/{}'.format(split, video_name))
-                match split:
-                    case 'train':
-                        train_lab.write('{},{}\n'.format(video_name, label))
-                    case 'val':
-                        val_lab.write('{},{}\n'.format(video_name, label))
-                    case 'test':
-                        test_lab.write('{},{}\n'.format(video_name, label))
-                    case _:
-                        print("fuck")
+                if split == 'train':
+                    train_lab.write('{},{}\n'.format(video_name, label))
+                elif split == 'val':
+                    val_lab.write('{},{}\n'.format(video_name, label))
+                elif split == 'test':
+                    test_lab.write('{},{}\n'.format(video_name, label))
+                else:
+                    print("fuck")
                 
     
     train_lab.close()
