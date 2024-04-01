@@ -69,7 +69,8 @@ def draw_landmarks_on_image_pose(rgb_image, detection_result):
   return annotated_image
 
 
-
+# https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
+# https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
 def get_pose(file):
     BaseOptions = mp.tasks.BaseOptions
     HandLandmarker = mp.tasks.vision.HandLandmarker
