@@ -144,4 +144,4 @@ if __name__ == "__main__":
     for vid in os.listdir(train):
         res = get_pose(train+vid)
         print(res)
-        np.savetxt(train+vid, res, delimiter=',')
+        np.savetxt(train+vid[:-3]+"txt", res, delimiter=',')
