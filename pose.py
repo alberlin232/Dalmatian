@@ -147,22 +147,19 @@ if __name__ == "__main__":
     val = './data/val/'
     test = './data/test/'
             
-    # for vid in os.listdir(train):
-    #     if not os.path.exists(train+vid[:-3]+"txt"):
-    #         res = get_pose(train+vid)
-    #         print(res)
-    #         np.savetxt(train+vid[:-3]+"txt", res, delimiter=',')
-    # for vid in os.listdir(val):
-    #     if not os.path.exists(val+vid[:-3]+"txt"):
-    #         res = get_pose(val+vid)
-    #         print(res)
-    #         np.savetxt(val+vid[:-3]+"txt", res, delimiter=',')
+    for vid in os.listdir(train):
+        if not os.path.exists(train+vid[:-3]+"txt"):
+            res = get_pose(train+vid)
+            print(res)
+            np.savetxt(train+vid[:-3]+"txt", res, delimiter=',')
+    for vid in os.listdir(val):
+        if not os.path.exists(val+vid[:-3]+"txt"):
+            res = get_pose(val+vid)
+            print(res)
+            np.savetxt(val+vid[:-3]+"txt", res, delimiter=',')
 
-    # for vid in os.listdir(test):
-    #     if not os.path.exists(test+vid[:-3]+"txt"):
-    #         res = get_pose(test+vid)
-    #         print(res)
-    #         np.savetxt(test+vid[:-3]+"txt", res, delimiter=',')
-
-    get_pose('./data/train/00378.mp4')
-    get_pose('./data/train/66363.mp4')
+    for vid in os.listdir(test):
+        if not os.path.exists(test+vid[:-3]+"txt"):
+            res = get_pose(test+vid)
+            print(res)
+            np.savetxt(test+vid[:-3]+"txt", res, delimiter=',')
