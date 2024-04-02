@@ -131,7 +131,13 @@ def get_pose(file):
                     for i in range(len(pose_marks[idx])):
                         content[i+87] = pose_marks[idx][i].x
                         content[i+121] = pose_marks[idx][i].y
-                
+                annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
+                annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
+
+                cv2.imshow('Hand Landmarks', annotated_image)
+                cv2.imwrite('example_{}.jpg'.format(current_timestamp),annotated_image)
+                if cv2.waitKey(5) & 0xFF == 27:
+                    break
                 arr.append(content)
         cap.release()
         cv2.destroyAllWindows()
@@ -141,7 +147,22 @@ if __name__ == "__main__":
     val = './data/val/'
     test = './data/test/'
             
-    for vid in os.listdir(train):
-        res = get_pose(train+vid)
-        print(res)
-        np.savetxt(train+vid[:-3]+"txt", res, delimiter=',')
+    # for vid in os.listdir(train):
+    #     if not os.path.exists(train+vid[:-3]+"txt"):
+    #         res = get_pose(train+vid)
+    #         print(res)
+    #         np.savetxt(train+vid[:-3]+"txt", res, delimiter=',')
+    # for vid in os.listdir(val):
+    #     if not os.path.exists(val+vid[:-3]+"txt"):
+    #         res = get_pose(val+vid)
+    #         print(res)
+    #         np.savetxt(val+vid[:-3]+"txt", res, delimiter=',')
+
+    # for vid in os.listdir(test):
+    #     if not os.path.exists(test+vid[:-3]+"txt"):
+    #         res = get_pose(test+vid)
+    #         print(res)
+    #         np.savetxt(test+vid[:-3]+"txt", res, delimiter=',')
+
+    get_pose('./data/train/00378.mp4')
+    get_pose('./data/train/66363.mp4')
