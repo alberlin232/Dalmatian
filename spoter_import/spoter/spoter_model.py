@@ -1,30 +1,25 @@
-
 import copy
 import torch
-
 import torch.nn as nn
 from typing import Optional
 
-
-def _get_clones(mod, n):
-    return nn.ModuleList([copy.deepcopy(mod) for _ in range(n)])
-
+def _get_clones(module, n):
+    """ Clone a module n times. """
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(n)])
 
 class SPOTERTransformerDecoderLayer(nn.TransformerDecoderLayer):
     """
-    Edited TransformerDecoderLayer implementation omitting the redundant self-attention operation as opposed to the
-    standard implementation.
+    A modified TransformerDecoderLayer that omits the self-attention mechanism, focusing
+    solely on cross-attention with the memory.
     """
-
     def __init__(self, d_model, nhead, dim_feedforward, dropout, activation):
-        super(SPOTERTransformerDecoderLayer, self).__init__(d_model, nhead, dim_feedforward, dropout, activation)
-
-        del self.self_attn
+        super().__init__(d_model, nhead, dim_feedforward, dropout, activation)
+        # del self.self_attn
 
     def forward(self, tgt: torch.Tensor, memory: torch.Tensor, tgt_mask: Optional[torch.Tensor] = None,
                 memory_mask: Optional[torch.Tensor] = None, tgt_key_padding_mask: Optional[torch.Tensor] = None,
-                memory_key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-
+                memory_key_padding_mask: Optional[torch.Tensor] = None, **kwargs) -> torch.Tensor:
+        # Use **kwargs to absorb additional unused arguments like 'tgt_is_causal'
         tgt = tgt + self.dropout1(tgt)
         tgt = self.norm1(tgt)
         tgt2 = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask,
@@ -37,13 +32,10 @@ class SPOTERTransformerDecoderLayer(nn.TransformerDecoderLayer):
 
         return tgt
 
-
 class SPOTER(nn.Module):
     """
-    Implementation of the SPOTER (Sign POse-based TransformER) architecture for sign language recognition from sequence
-    of skeletal data.
+    SPOTER - A Transformer-based architecture for sign language recognition from sequences of skeletal data.
     """
-
     def __init__(self, num_classes, hidden_dim=55):
         super().__init__()
 
@@ -53,9 +45,8 @@ class SPOTER(nn.Module):
         self.transformer = nn.Transformer(hidden_dim, 9, 6, 6)
         self.linear_class = nn.Linear(hidden_dim, num_classes)
 
-        # Deactivate the initial attention decoder mechanism
-        custom_decoder_layer = SPOTERTransformerDecoderLayer(self.transformer.d_model, self.transformer.nhead, 2048,
-                                                             0.1, "relu")
+        # Replace the default decoder layers with custom ones
+        custom_decoder_layer = SPOTERTransformerDecoderLayer(hidden_dim, self.transformer.nhead, 2048, 0.1, "relu")
         self.transformer.decoder.layers = _get_clones(custom_decoder_layer, self.transformer.decoder.num_layers)
 
     def forward(self, inputs):
@@ -65,6 +56,10 @@ class SPOTER(nn.Module):
 
         return res
 
-
+# The module can be instantiated and used in training or inference as usual
 if __name__ == "__main__":
-    pass
+    # Example instantiation and a dummy input processing
+    model = SPOTER(num_classes=10, hidden_dim=55)
+    dummy_input = torch.rand(1, 50, 55)  # Example input tensor
+    output = model(dummy_input)
+    print(output)
