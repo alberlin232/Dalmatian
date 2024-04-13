@@ -101,7 +101,7 @@ class CzechSLRDataset(torch_data.Dataset):
         """
 
         depth_map = torch.from_numpy(np.copy(self.data[idx]))
-        label = torch.Tensor([self.labels[idx] - 1])
+        label = torch.Tensor([self.labels[idx]])
 
         depth_map = tensor_to_dictionary(depth_map)
 
@@ -126,7 +126,7 @@ class CzechSLRDataset(torch_data.Dataset):
             depth_map = normalize_single_body_dict(depth_map)
             depth_map = normalize_single_hand_dict(depth_map)
 
-        depth_map = dictionary_to_tensor(depth_map)
+        depth_map = dictionary_to_tensor(depth_map).to(torch.float32)
 
         # Move the landmark position interval to improve performance
         depth_map = depth_map - 0.5
