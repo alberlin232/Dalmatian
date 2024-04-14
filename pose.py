@@ -5,6 +5,7 @@ import numpy as np
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+import pandas as pd
 import os
 
 MARGIN = 10  # pixels
@@ -12,6 +13,44 @@ FONT_SIZE = 1
 FONT_THICKNESS = 1
 HANDEDNESS_TEXT_COLOR = (88, 205, 54) # vibrant green
 
+HAND_ID = [
+    "wrist",
+    "thumbCMC",
+    "thumbMCP",
+    "thumbIP",
+    "thumbTip",
+    "indexMCP",
+    "indexPIP",
+    "indexDIP",
+    "indexTip",
+    "middleMCP",
+    "middlePIP",
+    "middleDIP",
+    "middleTip",
+    "ringMCP",
+    "ringPIP",
+    "ringDIP",
+    "ringTip",
+    "littleMCP",
+    "littlePIP",
+    "littleDIP",
+    "littleTip"
+]
+BODY_ID = [
+    "nose",
+    "neck",
+    "rightEye",
+    "leftEye",
+    "rightEar",
+    "leftEar",
+    "rightShoulder",
+    "leftShoulder",
+    "rightElbow",
+    "leftElbow",
+    "rightWrist",
+    "leftWrist"
+]
+BODY_DIC = {0:0, 5:2, 2:3, 8:4, 7:5, 12:6, 11:7, 14:8, 13:9, 16:10, 15:11}
 def draw_landmarks_on_image_hand(rgb_image, detection_result):
   hand_landmarks_list = detection_result.hand_landmarks
   handedness_list = detection_result.handedness
@@ -71,7 +110,7 @@ def draw_landmarks_on_image_pose(rgb_image, detection_result):
 
 # https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
 # https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
-def get_pose(file):
+def get_pose(file, dic, lab):
     BaseOptions = mp.tasks.BaseOptions
     HandLandmarker = mp.tasks.vision.HandLandmarker
     HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
@@ -92,12 +131,15 @@ def get_pose(file):
         with PoseLandmarker.create_from_options(options_pose) as landmarker_pose:
             cap = cv2.VideoCapture(file)
             fps = cap.get(cv2.CAP_PROP_FPS)
+            width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             frame_duration = 1000 / fps
             current_timestamp = 0
-            arr = []
+
+            landmakr_dic = make_dic_arr()
             while cap.isOpened():
                 ret, frame = cap.read()
-                # frame = cv2.resize(frame, (224, 224))
+
                 if not ret:
                     break
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
@@ -110,53 +152,108 @@ def get_pose(file):
 
                 pose_marks = pose_landmerker_result.pose_landmarks
                 
-                content = np.zeros(154)
                 # 0-20: left-x
                 # 21-42: left-y
                 # 43-64: right-x
                 # 65-86: right-y
                 # 87-120: pose-x
                 # 121-154: pose-y
+                left = False
+                right = False
                 for idx in range(len(hand_marks)):
                     if handiness[idx][0].category_name == "Left":
+                        left = True
                         for i in range(len(hand_marks[idx])):
-                            content[i] = hand_marks[idx][i].x
-                            content[i+21] = hand_marks[idx][i].y
+                            landmakr_dic[HAND_ID[i]+"_left"+"_X"].append(hand_marks[idx][i].x)
+                            landmakr_dic[HAND_ID[i]+"_left"+"_Y"].append(hand_marks[idx][i].y)
                     elif handiness[idx][0].category_name == "Right":
+                        right = True
                         for i in range(len(hand_marks[idx])):
-                            content[i+43] = hand_marks[idx][i].x
-                            content[i+65] = hand_marks[idx][i].x
-
+                            landmakr_dic[HAND_ID[i]+"_right"+"_X"].append(hand_marks[idx][i].x)
+                            landmakr_dic[HAND_ID[i]+"_right"+"_Y"].append(hand_marks[idx][i].y)
+                if not left:
+                    for i in range(21):
+                        landmakr_dic[HAND_ID[i]+"_left"+"_X"].append(0)
+                        landmakr_dic[HAND_ID[i]+"_left"+"_Y"].append(0)
+                if not right:
+                    for i in range(21):
+                        landmakr_dic[HAND_ID[i]+"_right"+"_X"].append(0)
+                        landmakr_dic[HAND_ID[i]+"_right"+"_Y"].append(0)
                 for idx in range(len(pose_marks)):
                     for i in range(len(pose_marks[idx])):
-                        content[i+87] = pose_marks[idx][i].x
-                        content[i+121] = pose_marks[idx][i].y
-                annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
-                annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
+                        if i in BODY_DIC:
+                            landmakr_dic[BODY_ID[BODY_DIC[i]]+"_X"].append(pose_marks[idx][i].x)
+                            landmakr_dic[BODY_ID[BODY_DIC[i]]+"_Y"].append(pose_marks[idx][i].y)
+                    landmakr_dic["neck_X"].append(0)
+                    landmakr_dic["neck_Y"].append(0)
+                    landmakr_dic["root_X"].append(0)
+                    landmakr_dic["root_Y"].append(0)
+                
+            landmakr_dic["video_fps"] = round(fps)
+            landmakr_dic["video_size_width"] = width
+            landmakr_dic["video_size_height"] = height
+            landmakr_dic["labels"] = lab2id[lab]
+                # annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
+                # annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
 
                 # cv2.imshow('Hand Landmarks', annotated_image)
                 # cv2.imwrite('example_{}.jpg'.format(current_timestamp),annotated_image)
                 # if cv2.waitKey(5) & 0xFF == 27:
                 #     break
-                arr.append(content)
         cap.release()
         cv2.destroyAllWindows()
-    return np.array(arr)
+    for key in landmakr_dic.keys():
+        dic[key].append(landmakr_dic[key])
+
+def make_dic_arr():
+    dic = {}
+    for part in HAND_ID:
+        dic[part+"_right"+"_X"] = []
+        dic[part+"_right"+"_Y"] = []
+        dic[part+"_left"+"_X"] = []
+        dic[part+"_left"+"_Y"] = []
+    for part in BODY_ID:
+        dic[part+"_X"] = []
+        dic[part+"_Y"] = []
+    dic["labels"] = []
+    dic["video_fps"] = []
+    dic["video_size_width"] = []
+    dic["video_size_height"] = []
+    dic["root_X"] = []
+    dic["root_Y"] = []
+
+    return dic
+
 if __name__ == "__main__":
     train = './data/train/'
     val = './data/val/'
     test = './data/test/'
-            
-    for vid in os.listdir(train):
-        if not os.path.exists(train+vid[:-3]+"txt"):
-            res = get_pose(train+vid)
-            np.savetxt(train+vid[:-3]+"txt", res, delimiter=',')
-    for vid in os.listdir(val):
-        if not os.path.exists(val+vid[:-3]+"txt"):
-            res = get_pose(val+vid)
-            np.savetxt(val+vid[:-3]+"txt", res, delimiter=',')
+    train_dic = make_dic_arr()
+    val_dic = make_dic_arr()
 
-    for vid in os.listdir(test):
-        if not os.path.exists(test+vid[:-3]+"txt"):
-            res = get_pose(test+vid)
-            np.savetxt(test+vid[:-3]+"txt", res, delimiter=',')
+    train_lab = pd.read_csv("./data/labels/train_labels.csv")
+    train_lab = train_lab.sort_values(train_lab.columns[0])
+    val_lab = pd.read_csv("./data/labels/val_labels.csv")
+    val_lab = val_lab.sort_values(val_lab.columns[0])
+
+    lab2id = {lab:i for i, lab in enumerate(train_lab[train_lab.columns[1]].unique())}
+    i = 0
+    for vid in os.listdir(train):
+        get_pose(train+vid, train_dic, train_lab.iloc[i,1])
+        i += 1
+        if i > 100:
+            break
+   
+    i = 0
+    for vid in sorted(os.listdir(val)):
+        get_pose(val+vid, val_dic, val_lab.iloc[i,1])
+        i += 1
+        if i > 20:
+            break
+    # for vid in os.listdir(test):
+    #     if not os.path.exists(test+vid[:-3]+"txt"):
+    #         res = get_pose(test+vid)
+    #         np.savetxt(test+vid[:-3]+"txt", res, delimiter=',')
+    pd.DataFrame.from_dict(train_dic).to_csv("WLASL2000_train.csv", index=False)
+    pd.DataFrame.from_dict(val_dic).to_csv("WLASL2000_val.csv", index=False)
+
