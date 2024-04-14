@@ -5,3 +5,6 @@ data/test
 data/labels
 data/_MACOSX
 data/videos
+test
+train
+val
