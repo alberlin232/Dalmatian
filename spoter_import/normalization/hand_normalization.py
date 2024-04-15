@@ -22,7 +22,7 @@ HAND_IDENTIFIERS = [
     "littleMCP",
     "thumbTip",
     "thumbIP",
-    "thumbMP",
+    "thumbMCP",
     "thumbCMC"
 ]
 
