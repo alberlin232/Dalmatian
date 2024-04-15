@@ -161,25 +161,29 @@ def get_pose(file, dic, lab):
                 left = False
                 right = False
                 for idx in range(len(hand_marks)):
-                    if handiness[idx][0].category_name == "Left":
+                    if handiness[idx][0].category_name == "Left" and left:
                         left = True
                         for i in range(len(hand_marks[idx])):
                             landmakr_dic[HAND_ID[i]+"_left"+"_X"].append(hand_marks[idx][i].x)
                             landmakr_dic[HAND_ID[i]+"_left"+"_Y"].append(hand_marks[idx][i].y)
-                    elif handiness[idx][0].category_name == "Right":
+                    elif handiness[idx][0].category_name == "Right" and right:
                         right = True
                         for i in range(len(hand_marks[idx])):
                             landmakr_dic[HAND_ID[i]+"_right"+"_X"].append(hand_marks[idx][i].x)
                             landmakr_dic[HAND_ID[i]+"_right"+"_Y"].append(hand_marks[idx][i].y)
                 if not left:
-                    for i in range(21):
+                    for i in range(len(HAND_ID)):
                         landmakr_dic[HAND_ID[i]+"_left"+"_X"].append(0)
                         landmakr_dic[HAND_ID[i]+"_left"+"_Y"].append(0)
                 if not right:
-                    for i in range(21):
+                    for i in range(len(HAND_ID)):
                         landmakr_dic[HAND_ID[i]+"_right"+"_X"].append(0)
                         landmakr_dic[HAND_ID[i]+"_right"+"_Y"].append(0)
+
+                # Body Time!!
+                body = False
                 for idx in range(len(pose_marks)):
+                    body = True
                     for i in range(len(pose_marks[idx])):
                         if i in BODY_DIC:
                             landmakr_dic[BODY_ID[BODY_DIC[i]]+"_X"].append(pose_marks[idx][i].x)
@@ -188,7 +192,16 @@ def get_pose(file, dic, lab):
                     landmakr_dic["neck_Y"].append(0)
                     landmakr_dic["root_X"].append(0)
                     landmakr_dic["root_Y"].append(0)
-                
+              
+                if not body:
+                    for i in range(len(BODY_ID)):
+                        landmakr_dic[BODY_ID[i]+"_X"].append(0)
+                        landmakr_dic[BODY_ID[i]+"_Y"].append(0)
+                    # landmakr_dic["neck_X"].append(0)
+                    # landmakr_dic["neck_Y"].append(0)
+                    landmakr_dic["root_X"].append(0)
+                    landmakr_dic["root_Y"].append(0)   
+
             landmakr_dic["video_fps"] = round(fps)
             landmakr_dic["video_size_width"] = width
             landmakr_dic["video_size_height"] = height
@@ -230,30 +243,33 @@ if __name__ == "__main__":
     test = './data/test/'
     train_dic = make_dic_arr()
     val_dic = make_dic_arr()
+    test_dic = make_dic_arr()
 
     train_lab = pd.read_csv("./data/labels/train_labels.csv")
     train_lab = train_lab.sort_values(train_lab.columns[0])
     val_lab = pd.read_csv("./data/labels/val_labels.csv")
     val_lab = val_lab.sort_values(val_lab.columns[0])
-
-    lab2id = {lab:i for i, lab in enumerate(train_lab[train_lab.columns[1]].unique())}
+    test_lab = pd.read_csv("./data/labels/test_labels.csv")
+    test_lab = test_lab.sort_values(test_lab.columns[0])
+    all_lab = pd.concat([train_lab, test_lab, val_lab], ignore_index=True)
+    print(len(all_lab[all_lab.columns[1]].unique()))
+    lab2id = {lab:i for i, lab in enumerate(all_lab[all_lab.columns[1]].unique())}
     i = 0
     for vid in os.listdir(train):
         get_pose(train+vid, train_dic, train_lab.iloc[i,1])
         i += 1
-        if i > 100:
-            break
-   
+
     i = 0
     for vid in sorted(os.listdir(val)):
         get_pose(val+vid, val_dic, val_lab.iloc[i,1])
         i += 1
-        if i > 20:
-            break
-    # for vid in os.listdir(test):
-    #     if not os.path.exists(test+vid[:-3]+"txt"):
-    #         res = get_pose(test+vid)
-    #         np.savetxt(test+vid[:-3]+"txt", res, delimiter=',')
+
+    i = 0
+    for vid in sorted(os.listdir(test)):
+        get_pose(test+vid, test_dic, test_lab.iloc[i,1])
+        i += 1
+
     pd.DataFrame.from_dict(train_dic).to_csv("WLASL2000_train.csv", index=False)
     pd.DataFrame.from_dict(val_dic).to_csv("WLASL2000_val.csv", index=False)
+    pd.DataFrame.from_dict(test_dic).to_csv("WLASL2000_test.csv", index=False)
 

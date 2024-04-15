@@ -134,7 +134,7 @@ class CzechSLRDataset(torch_data.Dataset):
 
         if self.transform:
             depth_map = self.transform(depth_map)
-        # print(depth_map.shape)
+
         return depth_map, label
 
     def __len__(self):
