@@ -110,7 +110,7 @@ def draw_landmarks_on_image_pose(rgb_image, detection_result):
 
 # https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
 # https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
-def get_pose(file, dic, lab):
+def get_pose(file, lab):
     BaseOptions = mp.tasks.BaseOptions
     HandLandmarker = mp.tasks.vision.HandLandmarker
     HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
@@ -216,7 +216,8 @@ def get_pose(file, dic, lab):
         cap.release()
         cv2.destroyAllWindows()
     for key in landmakr_dic.keys():
-        dic[key].append(landmakr_dic[key])
+        landmakr_dic[key] = [landmakr_dic[key]]
+    return landmakr_dic
 
 def make_dic_arr():
     dic = {}
@@ -241,35 +242,36 @@ if __name__ == "__main__":
     train = './data/train/'
     val = './data/val/'
     test = './data/test/'
-    train_dic = make_dic_arr()
-    val_dic = make_dic_arr()
-    test_dic = make_dic_arr()
+    
+    # make csv files
+    to_save = make_dic_arr()
+    pd.DataFrame.from_dict(to_save).to_csv("WLASL2000_train.csv", index=False)
+    pd.DataFrame.from_dict(to_save).to_csv("WLASL2000_val.csv", index=False)
+    pd.DataFrame.from_dict(to_save).to_csv("WLASL2000_test.csv", index=False)
 
-    train_lab = pd.read_csv("./data/labels/train_labels.csv")
+    train_lab = pd.read_csv("./data/labels/train_labels.csv", dtype=str)
     train_lab = train_lab.sort_values(train_lab.columns[0])
-    val_lab = pd.read_csv("./data/labels/val_labels.csv")
+    val_lab = pd.read_csv("./data/labels/val_labels.csv", dtype=str)
     val_lab = val_lab.sort_values(val_lab.columns[0])
-    test_lab = pd.read_csv("./data/labels/test_labels.csv")
+    test_lab = pd.read_csv("./data/labels/test_labels.csv", dtype=str)
     test_lab = test_lab.sort_values(test_lab.columns[0])
     all_lab = pd.concat([train_lab, test_lab, val_lab], ignore_index=True)
-    print(len(all_lab[all_lab.columns[1]].unique()))
     lab2id = {lab:i for i, lab in enumerate(all_lab[all_lab.columns[1]].unique())}
+    
     i = 0
-    for vid in os.listdir(train):
-        get_pose(train+vid, train_dic, train_lab.iloc[i,1])
+    for vid in train_lab[train_lab.columns[0]]:
+        train_dic = get_pose(train+str(vid)+".mp4", train_lab.iloc[i,1])
+        pd.DataFrame.from_dict(train_dic).to_csv("WLASL2000_train.csv", mode='a', index=False, header=False)
         i += 1
 
     i = 0
-    for vid in sorted(os.listdir(val)):
-        get_pose(val+vid, val_dic, val_lab.iloc[i,1])
+    for vid in val_lab[val_lab.columns[0]]:
+        val_dic = get_pose(val+str(vid)+".mp4", val_lab.iloc[i,1])
+        pd.DataFrame.from_dict(val_dic).to_csv("WLASL2000_val.csv", mode='a', index=False, header=False)
         i += 1
 
     i = 0
-    for vid in sorted(os.listdir(test)):
-        get_pose(test+vid, test_dic, test_lab.iloc[i,1])
+    for vid in test_lab[test_lab.columns[0]]:
+        test_dic = get_pose(test+str(vid)+".mp4", test_lab.iloc[i,1])
+        pd.DataFrame.from_dict(test_dic).to_csv("WLASL2000_test.csv", mode='a', index=False, header=False)
         i += 1
-
-    pd.DataFrame.from_dict(train_dic).to_csv("WLASL2000_train.csv", index=False)
-    pd.DataFrame.from_dict(val_dic).to_csv("WLASL2000_val.csv", index=False)
-    pd.DataFrame.from_dict(test_dic).to_csv("WLASL2000_test.csv", index=False)
-
