@@ -55,7 +55,7 @@ BODY_DIC = {0:0, 5:2, 2:3, 8:4, 7:5, 12:6, 11:7, 14:8, 13:9, 16:10, 15:11}
 
 # https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
 # https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
-def get_pose(file, lab, lab2id):
+def get_pose(file, lab):
     BaseOptions = mp.tasks.BaseOptions
     HandLandmarker = mp.tasks.vision.HandLandmarker
     HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
@@ -133,8 +133,8 @@ def get_pose(file, lab, lab2id):
                         if i in BODY_DIC:
                             landmakr_dic[BODY_ID[BODY_DIC[i]]+"_X"].append(pose_marks[idx][i].x)
                             landmakr_dic[BODY_ID[BODY_DIC[i]]+"_Y"].append(pose_marks[idx][i].y)
-                    landmakr_dic["neck_X"].append(0)
-                    landmakr_dic["neck_Y"].append(0)
+                    landmakr_dic["neck_X"].append((landmakr_dic["rightShoulder_X"] + landmakr_dic["leftShoulder_X"])/2)
+                    landmakr_dic["neck_Y"].append((landmakr_dic["rightShoulder_Y"] + landmakr_dic["leftShoulder_Y"])/2)
                     landmakr_dic["root_X"].append(0)
                     landmakr_dic["root_Y"].append(0)
               
@@ -150,7 +150,7 @@ def get_pose(file, lab, lab2id):
             landmakr_dic["video_fps"] = round(fps)
             landmakr_dic["video_size_width"] = width
             landmakr_dic["video_size_height"] = height
-            landmakr_dic["labels"] = lab2id[lab]
+            landmakr_dic["labels"] = lab
                 # annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
                 # annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
 
@@ -185,42 +185,27 @@ def make_dic_arr():
 
 
 def main():
-    train = './data/train/'
-    val = './data/val/'
-    test = './data/test/'
-    
-    train_lab = pd.read_csv("./data/labels/train_labels.csv", dtype=str)
-    train_lab = train_lab.sort_values(train_lab.columns[0])
-    val_lab = pd.read_csv("./data/labels/val_labels.csv", dtype=str)
-    val_lab = val_lab.sort_values(val_lab.columns[0])
-    test_lab = pd.read_csv("./data/labels/test_labels.csv", dtype=str)
-    test_lab = test_lab.sort_values(test_lab.columns[0])
-    all_lab = pd.concat([train_lab, test_lab, val_lab], ignore_index=True)
-    lab2id = {lab:i for i, lab in enumerate(all_lab[all_lab.columns[1]].unique())}
 
     # Create empty CSV files with headers
     headers = make_dic_arr().keys()
-    pd.DataFrame(columns=headers).to_csv("WLASL2000_train_t.csv", index=False)
-    pd.DataFrame(columns=headers).to_csv("WLASL2000_val_t.csv", index=False)
-    pd.DataFrame(columns=headers).to_csv("WLASL2000_test_t.csv", index=False)
-
-    print(lab2id)
-
+    pd.DataFrame(columns=headers).to_csv("64ALS.csv", index=False)
+    
+    videos = os.listdir('./data/ISA64')
+    
     # Use a multiprocessing pool to process videos in parallel
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
 
     res = []
-    for i, row in train_lab.iterrows():
-        video_path = os.path.join(train, row[train_lab.columns[0]] + ".mp4")
-        label = row[train_lab.columns[1]]
-
-        dic = pool.apply_async(get_pose, args=(video_path, label, lab2id))
+    for video in videos:
+        video_path = os.path.join('./data/ISA64', video)
+        print(video_path)
+        label = video[-15:-12]
+        dic = pool.apply_async(get_pose, args=(video_path, int(label)))
         res.append(dic)
-        break
     pool.close()
     for f_res in res:
-        result_dic = f_res.get()
-        pd.DataFrame.from_dict(result_dic).to_csv("WLASL2000_train_t.csv", mode='a', index=False, header=False)
+        result_dic = f_res.get(timeout=60)
+        pd.DataFrame.from_dict(result_dic).to_csv("64ALS.csv", mode='a', index=False, header=False)
 
     pool.join()
 
