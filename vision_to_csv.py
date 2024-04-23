@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     dir_path = "./data/ISA64/pose"
     for path in os.listdir(dir_path):
-        label = path[:3]
+        label = str(int(path[:3])-1)
         df_path = os.path.join(dir_path, path)
         df = pd.read_csv(df_path)
         df = drop_duplicate_columns(df)
