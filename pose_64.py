@@ -52,6 +52,62 @@ BODY_ID = [
     "leftWrist"
 ]
 BODY_DIC = {0:0, 5:2, 2:3, 8:4, 7:5, 12:6, 11:7, 14:8, 13:9, 16:10, 15:11}
+def draw_landmarks_on_image_hand(rgb_image, detection_result):
+  hand_landmarks_list = detection_result.hand_landmarks
+  handedness_list = detection_result.handedness
+  annotated_image = np.copy(rgb_image)
+
+  # Loop through the detected hands to visualize.
+  for idx in range(len(hand_landmarks_list)):
+    hand_landmarks = hand_landmarks_list[idx]
+    handedness = handedness_list[idx]
+
+    # Draw the hand landmarks.
+    hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+    hand_landmarks_proto.landmark.extend([
+      landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in hand_landmarks
+    ])
+    solutions.drawing_utils.draw_landmarks(
+      annotated_image,
+      hand_landmarks_proto,
+      solutions.hands.HAND_CONNECTIONS,
+      solutions.drawing_styles.get_default_hand_landmarks_style(),
+      solutions.drawing_styles.get_default_hand_connections_style())
+
+    # Get the top left corner of the detected hand's bounding box.
+    height, width, _ = annotated_image.shape
+    x_coordinates = [landmark.x for landmark in hand_landmarks]
+    y_coordinates = [landmark.y for landmark in hand_landmarks]
+    text_x = int(min(x_coordinates) * width)
+    text_y = int(min(y_coordinates) * height) - MARGIN
+
+    # Draw handedness (left or right hand) on the image.
+    cv2.putText(annotated_image, f"{handedness[0].category_name}",
+                (text_x, text_y), cv2.FONT_HERSHEY_DUPLEX,
+                FONT_SIZE, HANDEDNESS_TEXT_COLOR, FONT_THICKNESS, cv2.LINE_AA)
+
+  return annotated_image
+
+def draw_landmarks_on_image_pose(rgb_image, detection_result):
+  pose_landmarks_list = detection_result.pose_landmarks
+  annotated_image = np.copy(rgb_image)
+
+  # Loop through the detected poses to visualize.
+  for idx in range(len(pose_landmarks_list)):
+    pose_landmarks = pose_landmarks_list[idx]
+
+    # Draw the pose landmarks.
+    pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+    pose_landmarks_proto.landmark.extend([
+      landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in pose_landmarks
+    ])
+    solutions.drawing_utils.draw_landmarks(
+      annotated_image,
+      pose_landmarks_proto,
+      solutions.pose.POSE_CONNECTIONS,
+      solutions.drawing_styles.get_default_pose_landmarks_style())
+  return annotated_image
+
 
 # https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
 # https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
@@ -67,7 +123,10 @@ def get_pose(file, lab):
     options_hand = HandLandmarkerOptions(
         base_options=BaseOptions(model_asset_path='./hand_landmarker.task'),
         running_mode=VisionRunningMode.VIDEO,
-        num_hands=2)
+        num_hands=2,
+        min_hand_detection_confidence=0.50,
+        min_hand_presence_confidence=0.50,
+        min_tracking_confidence=0.50)
     options_pose = PoseLandmarkerOptions(
         base_options=BaseOptions(model_asset_path='./pose_landmarker.task'),
         running_mode=VisionRunningMode.VIDEO)
@@ -97,6 +156,13 @@ def get_pose(file, lab):
 
                 pose_marks = pose_landmerker_result.pose_landmarks
                 
+                annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
+                annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
+
+                cv2.imshow('Hand Landmarks', annotated_image)
+                # cv2.imwrite('example_{}.jpg'.format(current_timestamp),annotated_image)
+                if cv2.waitKey(5) & 0xFF == 27:
+                    break
                 # 0-20: left-x
                 # 21-42: left-y
                 # 43-64: right-x
@@ -133,8 +199,8 @@ def get_pose(file, lab):
                         if i in BODY_DIC:
                             landmakr_dic[BODY_ID[BODY_DIC[i]]+"_X"].append(pose_marks[idx][i].x)
                             landmakr_dic[BODY_ID[BODY_DIC[i]]+"_Y"].append(pose_marks[idx][i].y)
-                    landmakr_dic["neck_X"].append((landmakr_dic["rightShoulder_X"] + landmakr_dic["leftShoulder_X"])/2)
-                    landmakr_dic["neck_Y"].append((landmakr_dic["rightShoulder_Y"] + landmakr_dic["leftShoulder_Y"])/2)
+                    landmakr_dic["neck_X"].append((landmakr_dic["rightShoulder_X"][-1] + landmakr_dic["leftShoulder_X"][-1])/2)
+                    landmakr_dic["neck_Y"].append((landmakr_dic["rightShoulder_Y"][-1] + landmakr_dic["leftShoulder_Y"][-1])/2)
                     landmakr_dic["root_X"].append(0)
                     landmakr_dic["root_Y"].append(0)
               
@@ -151,13 +217,6 @@ def get_pose(file, lab):
             landmakr_dic["video_size_width"] = width
             landmakr_dic["video_size_height"] = height
             landmakr_dic["labels"] = lab
-                # annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
-                # annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
-
-                # cv2.imshow('Hand Landmarks', annotated_image)
-                # cv2.imwrite('example_{}.jpg'.format(current_timestamp),annotated_image)
-                # if cv2.waitKey(5) & 0xFF == 27:
-                #     break
         cap.release()
         cv2.destroyAllWindows()
     for key in landmakr_dic.keys():
@@ -188,24 +247,25 @@ def main():
 
     # Create empty CSV files with headers
     headers = make_dic_arr().keys()
-    pd.DataFrame(columns=headers).to_csv("64ALS.csv", index=False)
+    pd.DataFrame(columns=headers).to_csv("64ALS_025.csv", index=False)
     
     videos = os.listdir('./data/ISA64')
     
     # Use a multiprocessing pool to process videos in parallel
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    # pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    pool = multiprocessing.Pool(processes=1)
 
     res = []
-    for video in videos:
+    for video in videos[2533:]:
         video_path = os.path.join('./data/ISA64', video)
-        print(video_path)
         label = video[-15:-12]
+        print(video_path)
         dic = pool.apply_async(get_pose, args=(video_path, int(label)))
         res.append(dic)
     pool.close()
     for f_res in res:
         result_dic = f_res.get(timeout=60)
-        pd.DataFrame.from_dict(result_dic).to_csv("64ALS.csv", mode='a', index=False, header=False)
+        # pd.DataFrame.from_dict(result_dic).to_csv("64ALS_025.csv", mode='a', index=False, header=False)
 
     pool.join()
 
