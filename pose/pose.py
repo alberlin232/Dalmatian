@@ -8,6 +8,7 @@ from mediapipe.tasks.python import vision
 import pandas as pd
 import os
 import multiprocessing
+from cv2 import VideoWriter, VideoWriter_fourcc
 
 MARGIN = 10  # pixels
 FONT_SIZE = 1
@@ -52,6 +53,61 @@ BODY_ID = [
     "leftWrist"
 ]
 BODY_DIC = {0:0, 5:2, 2:3, 8:4, 7:5, 12:6, 11:7, 14:8, 13:9, 16:10, 15:11}
+def draw_landmarks_on_image_hand(rgb_image, detection_result):
+  hand_landmarks_list = detection_result.hand_landmarks
+  handedness_list = detection_result.handedness
+  annotated_image = np.copy(rgb_image)
+
+  # Loop through the detected hands to visualize.
+  for idx in range(len(hand_landmarks_list)):
+    hand_landmarks = hand_landmarks_list[idx]
+    handedness = handedness_list[idx]
+
+    # Draw the hand landmarks.
+    hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+    hand_landmarks_proto.landmark.extend([
+      landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in hand_landmarks
+    ])
+    solutions.drawing_utils.draw_landmarks(
+      annotated_image,
+      hand_landmarks_proto,
+      solutions.hands.HAND_CONNECTIONS,
+      solutions.drawing_styles.get_default_hand_landmarks_style(),
+      solutions.drawing_styles.get_default_hand_connections_style())
+
+    # Get the top left corner of the detected hand's bounding box.
+    height, width, _ = annotated_image.shape
+    x_coordinates = [landmark.x for landmark in hand_landmarks]
+    y_coordinates = [landmark.y for landmark in hand_landmarks]
+    text_x = int(min(x_coordinates) * width)
+    text_y = int(min(y_coordinates) * height) - MARGIN
+
+    # Draw handedness (left or right hand) on the image.
+    cv2.putText(annotated_image, f"{handedness[0].category_name}",
+                (text_x, text_y), cv2.FONT_HERSHEY_DUPLEX,
+                FONT_SIZE, HANDEDNESS_TEXT_COLOR, FONT_THICKNESS, cv2.LINE_AA)
+
+  return annotated_image
+
+def draw_landmarks_on_image_pose(rgb_image, detection_result):
+  pose_landmarks_list = detection_result.pose_landmarks
+  annotated_image = np.copy(rgb_image)
+
+  # Loop through the detected poses to visualize.
+  for idx in range(len(pose_landmarks_list)):
+    pose_landmarks = pose_landmarks_list[idx]
+
+    # Draw the pose landmarks.
+    pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+    pose_landmarks_proto.landmark.extend([
+      landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in pose_landmarks
+    ])
+    solutions.drawing_utils.draw_landmarks(
+      annotated_image,
+      pose_landmarks_proto,
+      solutions.pose.POSE_CONNECTIONS,
+      solutions.drawing_styles.get_default_pose_landmarks_style())
+  return annotated_image
 
 # https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
 # https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
@@ -74,12 +130,19 @@ def get_pose(file, lab, lab2id):
 
     with HandLandmarker.create_from_options(options_hand) as landmarker_hand:
         with PoseLandmarker.create_from_options(options_pose) as landmarker_pose:
-            cap = cv2.VideoCapture(file)
+            cap = cv2.VideoCapture(file, cv2.CAP_GSTREAMER)
+            if not cap.isOpened():
+                print("Error opening video stream or file")
+                return
+
             fps = cap.get(cv2.CAP_PROP_FPS)
             width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
             height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             frame_duration = 1000 / fps
             current_timestamp = 0
+
+            fourcc = VideoWriter_fourcc(*'mp4v') # Be sure to use lower case
+            video_writer = VideoWriter('help.mp4', fourcc, fps, (int(width), int(height)))
 
             landmakr_dic = make_dic_arr()
             while cap.isOpened():
@@ -147,18 +210,19 @@ def get_pose(file, lab, lab2id):
                     landmakr_dic["root_X"].append(0)
                     landmakr_dic["root_Y"].append(0)   
 
+                annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
+                annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
+
+                # cv2.imshow('Hand Landmarks', annotated_image)
+                video_writer.write(annotated_image)
+                if cv2.waitKey(5) & 0xFF == 27:
+                    break
             landmakr_dic["video_fps"] = round(fps)
             landmakr_dic["video_size_width"] = width
             landmakr_dic["video_size_height"] = height
             landmakr_dic["labels"] = lab2id[lab]
-                # annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
-                # annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
-
-                # cv2.imshow('Hand Landmarks', annotated_image)
-                # cv2.imwrite('example_{}.jpg'.format(current_timestamp),annotated_image)
-                # if cv2.waitKey(5) & 0xFF == 27:
-                #     break
-        cap.release()
+            video_writer.release()
+            cap.release()
         cv2.destroyAllWindows()
     for key in landmakr_dic.keys():
         landmakr_dic[key] = [landmakr_dic[key]]
@@ -200,29 +264,26 @@ def main():
 
     # Create empty CSV files with headers
     headers = make_dic_arr().keys()
-    pd.DataFrame(columns=headers).to_csv("WLASL2000_train_t.csv", index=False)
-    pd.DataFrame(columns=headers).to_csv("WLASL2000_val_t.csv", index=False)
-    pd.DataFrame(columns=headers).to_csv("WLASL2000_test_t.csv", index=False)
+    # pd.DataFrame(columns=headers).to_csv("WLASL2000_train_t.csv", index=False)
+    # pd.DataFrame(columns=headers).to_csv("WLASL2000_val_t.csv", index=False)
+    # pd.DataFrame(columns=headers).to_csv("WLASL2000_test_t.csv", index=False)
 
-    print(lab2id)
 
     # Use a multiprocessing pool to process videos in parallel
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    # pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
 
     res = []
     for i, row in train_lab.iterrows():
         video_path = os.path.join(train, row[train_lab.columns[0]] + ".mp4")
         label = row[train_lab.columns[1]]
 
-        dic = pool.apply_async(get_pose, args=(video_path, label, lab2id))
-        res.append(dic)
-        break
-    pool.close()
-    for f_res in res:
-        result_dic = f_res.get()
-        pd.DataFrame.from_dict(result_dic).to_csv("WLASL2000_train_t.csv", mode='a', index=False, header=False)
+        dic = get_pose(video_path, label, lab2id)
+    # pool.close()
+    # for f_res in res:
+    #     result_dic = f_res.get()
+    #     # pd.DataFrame.from_dict(result_dic).to_csv("WLASL2000_train_t.csv", mode='a', index=False, header=False)
 
-    pool.join()
+    # pool.join()
 
 if __name__ == "__main__":
     main()

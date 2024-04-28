@@ -137,13 +137,15 @@ class VideoProcessor {
                 dataRow[yKey] = Float(point.location.y)
             }
         }
+        // Process each hand in the observation
         for observation in hand_observations {
+            // which hand is it
             let chirality = observation.chirality.rawValue == -1 ? "left" : "right"
             guard let allFingerPoints = try? observation.recognizedPoints(.all) else {
                 print("Could not recognize any points in this frame.")
                 return
             }
-            
+            // Each point gets put into the datarow if its more then 0.5 confident
             for (joint, point) in allFingerPoints where point.confidence > 0.5 {
                 let jointName = jointKeyMapping[joint.rawValue.rawValue] ?? joint.rawValue.rawValue
                 let keyX = "\(jointName)_\(chirality)_X"
@@ -160,7 +162,7 @@ class VideoProcessor {
         let line = sortedValues.joined(separator: ",")
         csvLines.append(line)
     }
-
+        // writes the data to csv
       private func writeCSV() {
           let filePath = (self.outputPath as NSString).expandingTildeInPath
           let fileURL = URL(fileURLWithPath: filePath)

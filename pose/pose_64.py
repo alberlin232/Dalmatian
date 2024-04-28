@@ -52,6 +52,7 @@ BODY_ID = [
     "leftWrist"
 ]
 BODY_DIC = {0:0, 5:2, 2:3, 8:4, 7:5, 12:6, 11:7, 14:8, 13:9, 16:10, 15:11}
+
 def draw_landmarks_on_image_hand(rgb_image, detection_result):
   hand_landmarks_list = detection_result.hand_landmarks
   handedness_list = detection_result.handedness
@@ -130,9 +131,11 @@ def get_pose(file, lab):
     options_pose = PoseLandmarkerOptions(
         base_options=BaseOptions(model_asset_path='./pose_landmarker.task'),
         running_mode=VisionRunningMode.VIDEO)
-
+    # make the hand and body processers
     with HandLandmarker.create_from_options(options_hand) as landmarker_hand:
         with PoseLandmarker.create_from_options(options_pose) as landmarker_pose:
+            
+            # parse through video
             cap = cv2.VideoCapture(file)
             fps = cap.get(cv2.CAP_PROP_FPS)
             width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -147,6 +150,8 @@ def get_pose(file, lab):
                 if not ret:
                     break
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+
+                # detect body and hand landmarks
                 hand_landmarker_result = landmarker_hand.detect_for_video(mp_image, int(current_timestamp))
                 pose_landmerker_result = landmarker_pose.detect_for_video(mp_image, int(current_timestamp))
                 current_timestamp += frame_duration    
@@ -156,13 +161,13 @@ def get_pose(file, lab):
 
                 pose_marks = pose_landmerker_result.pose_landmarks
                 
-                annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
-                annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
+                # annotated_image = draw_landmarks_on_image_hand(mp_image.numpy_view(), hand_landmarker_result)
+                # annotated_image = draw_landmarks_on_image_pose(annotated_image, pose_landmerker_result)
 
-                cv2.imshow('Hand Landmarks', annotated_image)
+                # cv2.imshow('Hand Landmarks', annotated_image)
                 # cv2.imwrite('example_{}.jpg'.format(current_timestamp),annotated_image)
-                if cv2.waitKey(5) & 0xFF == 27:
-                    break
+                # if cv2.waitKey(5) & 0xFF == 27:
+                #     break
                 # 0-20: left-x
                 # 21-42: left-y
                 # 43-64: right-x
@@ -171,6 +176,8 @@ def get_pose(file, lab):
                 # 121-154: pose-y
                 left = False
                 right = False
+
+                # put each landmkar in the dic
                 for idx in range(len(hand_marks)):
                     if handiness[idx][0].category_name == "Left" and not left:
                         left = True
@@ -223,6 +230,7 @@ def get_pose(file, lab):
         landmakr_dic[key] = [landmakr_dic[key]]
     return landmakr_dic
 
+# init the dic dictionarly with all the right keys
 def make_dic_arr():
     dic = {}
     for part in HAND_ID:

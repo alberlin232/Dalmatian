@@ -102,13 +102,26 @@ def drop_duplicate_columns(df):
     return df.loc[:, ~duplicates]
 
 if __name__ == "__main__":
+    train = './data/train/'
+    val = './data/val/'
+    test = './data/test/'
+    
+    train_lab = pd.read_csv("./data/labels/train_labels.csv", dtype=str)
+    train_lab = train_lab.sort_values(train_lab.columns[0])
+    val_lab = pd.read_csv("./data/labels/val_labels.csv", dtype=str)
+    val_lab = val_lab.sort_values(val_lab.columns[0])
+    test_lab = pd.read_csv("./data/labels/test_labels.csv", dtype=str)
+    test_lab = test_lab.sort_values(test_lab.columns[0])
+    all_lab = pd.concat([train_lab, test_lab, val_lab], ignore_index=True)
+    lab2id = {lab:i for i, lab in enumerate(all_lab[all_lab.columns[1]].unique())}
+    
     headers = make_dic_arr()
 
-    dir_path = "./data/ISA64/pose"
-    for path in os.listdir(dir_path):
-        label = str(int(path[:3])-1)
-        df_path = os.path.join(dir_path, path)
-        df = pd.read_csv(df_path)
+    dir_path = "./data/test"
+    for i, row in test_lab.iterrows():
+        csv_path = os.path.join(test, row[test_lab.columns[0]] + ".csv")
+        label = row[test_lab.columns[1]]
+        df = pd.read_csv(csv_path)
         df = drop_duplicate_columns(df)
         dic = df.to_dict(orient="list")
         length = len(dic["wrist_right_X"])
@@ -119,11 +132,11 @@ if __name__ == "__main__":
             elif len(keys) == 2:
                 new_key = CONV_DIC[keys[0]] + "_" + keys[1].split(".")[0]
             headers[new_key].append(dic[key])
-        headers["labels"].append(label)
+        headers["labels"].append(lab2id[label])
         headers["video_size_width"].append(0)
         headers["video_size_height"].append(0)
         headers["video_fps"].append(30)
         headers["root_Y"].append([0]*length)
         headers["root_X"].append([0]*length)
-    pd.DataFrame().from_dict(headers).to_csv("./ISA64_vision.csv", index=False)
+    pd.DataFrame().from_dict(headers).to_csv("./WLASL2000_test_vision.csv", index=False)
     
