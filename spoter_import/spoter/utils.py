@@ -1,14 +1,14 @@
 
 import logging
 import torch
-
+from tqdm import tqdm
 
 def train_epoch(model, dataloader, criterion, optimizer, device, scheduler=None):
 
     pred_correct, pred_all = 0, 0
     running_loss = 0.0
 
-    for i, data in enumerate(dataloader):
+    for i, data in enumerate(tqdm(dataloader,  desc="Training")):
         inputs, labels = data
         inputs = inputs.squeeze(0).to(device)
         labels = labels.to(device, dtype=torch.long)
@@ -35,7 +35,7 @@ def train_epoch(model, dataloader, criterion, optimizer, device, scheduler=None)
 def evaluate(model, dataloader, device, print_stats=False):
 
     pred_correct, pred_all = 0, 0
-    stats = {i: [0, 0] for i in range(101)}
+    stats = {i: [0, 0] for i in range(65)}
 
     for i, data in enumerate(dataloader):
         inputs, labels = data

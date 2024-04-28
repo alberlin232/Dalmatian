@@ -63,6 +63,7 @@ def dictionary_to_tensor(landmarks_dict: dict) -> torch.Tensor:
     return torch.from_numpy(output)
 
 
+
 class CzechSLRDataset(torch_data.Dataset):
     """Advanced object representation of the HPOES dataset for loading hand joints landmarks utilizing the Torch's
     built-in Dataset properties"""
